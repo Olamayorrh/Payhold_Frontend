@@ -1,18 +1,18 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Landing from './pages/Landing/Landing';
-import Login from './pages/Auth/Login';
-import Signup from './pages/Auth/Signup';
-import Dashboard from './pages/Dashboard/Dashboard';
-import CreateEscrow from './pages/Escrow/CreateEscrow';
-import EscrowList from './pages/Escrow/EscrowList';
-import PaymentLinkPage from './pages/Escrow/PaymentLinkPage';
-import PaymentVerify from './pages/Escrow/PaymentVerify';
-import KYCVerification from './pages/KYC/KYCVerification';
-import Wallet from './pages/Wallet/Wallet';
-import Profile from './pages/Profile/Profile';
-import MainLayout from './components/Layout/MainLayout/MainLayout';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import Landing from './pages/Landing/Landing.jsx';
+import Login from './pages/Auth/Login.jsx';
+import Signup from './pages/Auth/Signup.jsx';
+import Dashboard from './pages/Dashboard/Dashboard.jsx';
+import CreateEscrow from './pages/Escrow/CreateEscrow.jsx';
+import EscrowList from './pages/Escrow/EscrowList.jsx';
+import PaymentLinkPage from './pages/Escrow/PaymentLinkPage.jsx';
+import PaymentVerify from './pages/Escrow/PaymentVerify.jsx';
+import KYCVerification from './pages/KYC/KYCVerification.jsx';
+import Wallet from './pages/Wallet/Wallet.jsx';
+import Profile from './pages/Profile/Profile.jsx';
+import MainLayout from './components/Layout/MainLayout/MainLayout.jsx';
 import './App.css';
 
 // Protected Route Component
