@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Search, Filter, Plus, ChevronRight, Clock, CheckCircle2, AlertCircle, PackageCheck, UserCheck } from 'lucide-react';
-import { Link } from 'react-router';
+import { ShieldCheck, Search, Filter, Plus, ChevronRight, Clock, CheckCircle2, AlertCircle, PackageCheck, UserCheck, CreditCard } from 'lucide-react';
+import { Link, useLocation } from 'react-router';
 import api from '../../services/api';
 import Button from '../../components/UI/Button/Button';
 import { Card, CardContent } from '../../components/UI/Card/Card';
@@ -12,12 +12,36 @@ const EscrowList = () => {
   const { user } = useAuth();
   const [escrows, setEscrows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
+
+  const getTabFromURL = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'purchases';
+  };
+
+  const [activeTab, setActiveTab ] = useState(getTabFromURL());
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Listen for changes in the URL so Dashboard links correctly switch tabs
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab) {
+        setActiveTab(tab);
+    }
+  }, [location.search]);
 
   const fetchEscrows = async () => {
     try {
       const { data } = await api.get('/payment/transactions');
       setEscrows(data.data);
+      // Auto-switch to sales if they have sales but no purchases and didn't specify tab
+      const currentTab = new URLSearchParams(location.search).get('tab');
+      if (!currentTab) {
+          const hasSales = data.data.some(tx => tx.sellerId?._id?.toString() === user?._id?.toString());
+          const hasPurchases = data.data.some(tx => tx.buyerId?._id?.toString() === user?._id?.toString());
+          if (hasSales && !hasPurchases) setActiveTab('sales');
+      }
     } catch (err) {
       console.error('Error fetching escrows');
     } finally {
@@ -27,13 +51,13 @@ const EscrowList = () => {
 
   useEffect(() => {
     fetchEscrows();
-  }, []);
+  }, [user?._id]);
 
   const handleAction = async (id, action) => {
     setIsProcessing(true);
     try {
       await api.post(`/transaction/${action}/${id}`, {});
-      alert(`Transaction ${action}ed successfully!`);
+      alert(`Transaction ${action === 'confirm' ? 'confirmed' : action === 'dispute' ? 'disputed' : 'marked as shipped'} successfully!`);
       fetchEscrows();
     } catch (err) {
       alert(err.response?.data?.message || `Failed to ${action} transaction.`);
@@ -52,25 +76,58 @@ const EscrowList = () => {
     }
   };
 
+  const filteredEscrows = escrows.filter(item => {
+    const userIdStr = user?._id?.toString();
+    if (activeTab === 'purchases') return (item.buyerId?._id || item.buyerId)?.toString() === userIdStr;
+    if (activeTab === 'sales') return (item.sellerId?._id || item.sellerId)?.toString() === userIdStr;
+    return false;
+  });
+
   if (loading) return <div className="p-8 text-center font-bold text-primary italic">Loading your deals...</div>;
 
   return (
     <div className="space-y-8 pb-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">My Escrows</h1>
-          <p className="text-muted leading-relaxed">Securely track and manage your active deals.</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">Secure Deals</h1>
+          <p className="text-muted leading-relaxed">Track your active purchases and business sales.</p>
         </div>
-        <Link to="/dashboard">
-          <Button className="gap-2 shadow-lg hover:shadow-primary/20 h-11">
-            <Plus size={18} /> New Link
-          </Button>
-        </Link>
+        {user?.role === 'seller' && (
+          <Link to="/dashboard">
+            <Button className="gap-2 shadow-lg hover:shadow-primary/20 h-11">
+              <Plus size={18} /> New Link
+            </Button>
+          </Link>
+        )}
       </div>
 
-      {escrows.length > 0 ? (
+      {/* Role Tabs */}
+      <div className="flex p-1 bg-slate-100 rounded-xl w-fit">
+        <button 
+          onClick={() => setActiveTab('purchases')}
+          className={cn(
+            "px-6 py-2 rounded-lg text-sm font-bold transition-all",
+            activeTab === 'purchases' ? "bg-white text-primary shadow-sm" : "text-muted hover:text-slate-900"
+          )}
+        >
+          My Purchases
+        </button>
+        {user?.role === 'seller' && (
+          <button 
+            onClick={() => setActiveTab('sales')}
+            className={cn(
+              "px-6 py-2 rounded-lg text-sm font-bold transition-all",
+              activeTab === 'sales' ? "bg-white text-primary shadow-sm" : "text-muted hover:text-slate-900"
+            )}
+          >
+            Orders Received
+          </button>
+        )}
+      </div>
+
+      {filteredEscrows.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
-          {escrows.map((item, idx) => (
+          {filteredEscrows.map((item, idx) => (
             <motion.div
               key={item._id}
               initial={{ opacity: 0, x: -20 }}
@@ -94,7 +151,7 @@ const EscrowList = () => {
                           <div className="flex items-center gap-2">
                              <h3 className="text-xl font-extrabold text-slate-900 group-hover:text-primary transition-colors">{item.paymentLinkId?.title || 'Escrow Payment'}</h3>
                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 px-2 rounded-full py-0.5 border border-slate-100 leading-none">
-                                {item.sellerId._id === user._id ? 'Seller' : 'Buyer'}
+                                {activeTab === 'sales' ? 'Seller' : 'Buyer'}
                              </span>
                           </div>
                           <p className="text-sm text-muted font-medium italic">Ref: {item.paymentReference.slice(0, 8)}...</p>
@@ -108,7 +165,7 @@ const EscrowList = () => {
                             "inline-block px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter ring-1 ring-inset shadow-xs",
                             getStatusColor(item.status)
                           )}>
-                            {item.status}
+                            {item.status === 'delivered' ? 'IN TRANSIT' : item.status}
                           </span>
                        </div>
                        <div className="h-10 w-10 flex items-center justify-center rounded-full bg-slate-50 text-muted transition-all shadow-xs">
@@ -117,32 +174,87 @@ const EscrowList = () => {
                     </div>
                   </div>
 
+                  {/* Visual Timeline */}
+                  <div className="px-6 py-8 bg-white border-t border-slate-50">
+                    <div className="relative flex justify-between items-center max-w-2xl mx-auto">
+                        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 -translate-y-1/2 -z-0"></div>
+                        <div className={cn("absolute top-1/2 left-0 h-0.5 -translate-y-1/2 -z-0 transition-all duration-700", 
+                            item.status === 'disputed' ? 'w-full bg-red-500' : 
+                            (item.status === 'paid' ? 'w-0' : 
+                             item.status === 'delivered' ? 'w-2/3' : 
+                             item.status === 'completed' ? 'w-full' : 'w-0') + " bg-primary")}></div>
+                        
+                        <div className="relative z-10 flex flex-col items-center gap-2">
+                            <div className={cn("h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white transition-colors", 
+                                ["paid", "delivered", "completed", "disputed"].includes(item.status) ? "border-primary text-primary" : "border-slate-200 text-slate-300")}>
+                                <CreditCard size={14} />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase text-slate-400">Paid</span>
+                        </div>
+                        
+                        <div className="relative z-10 flex flex-col items-center gap-2">
+                            <div className={cn("h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white transition-colors", 
+                                ["delivered", "completed", "disputed"].includes(item.status) ? "border-primary text-primary" : "border-slate-200 text-slate-300")}>
+                                <PackageCheck size={14} />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase text-slate-400">In Transit</span>
+                        </div>
+
+                        {item.status === 'disputed' ? (
+                             <div className="relative z-10 flex flex-col items-center gap-2">
+                                <div className="h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white border-red-500 text-red-500 animate-pulse">
+                                    <AlertCircle size={14} />
+                                </div>
+                                <span className="text-[10px] font-bold uppercase text-red-500">Disputed</span>
+                            </div>
+                        ) : (
+                            <div className="relative z-10 flex flex-col items-center gap-2">
+                                <div className={cn("h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white transition-colors", 
+                                    item.status === 'completed' ? "border-primary text-primary" : "border-slate-200 text-slate-300")}>
+                                    <CheckCircle2 size={14} />
+                                </div>
+                                <span className="text-[10px] font-bold uppercase text-slate-400">Completed</span>
+                            </div>
+                        )}
+                    </div>
+                  </div>
+
                   {/* Contextual Action Bar */}
-                  {( (item.sellerId._id === user._id && item.status === 'paid') || 
-                     (item.buyerId._id === user._id && item.status === 'delivered') ) && (
+                  {( (activeTab === 'sales' && item.status === 'paid') || 
+                     (activeTab === 'purchases' && item.status === 'delivered') ) && (
                     <div className="bg-slate-50 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 border-dashed">
                       <div className="flex items-center gap-2 text-xs font-bold text-muted uppercase tracking-wider">
                          <div className="h-2 w-2 rounded-full bg-primary animate-ping"></div>
                          Action Required
                       </div>
                       <div className="flex gap-2 w-full sm:w-auto">
-                        {item.sellerId._id === user._id && item.status === 'paid' && (
+                        {activeTab === 'sales' && item.status === 'paid' && (
                           <Button 
                             disabled={isProcessing}
                             onClick={() => handleAction(item._id, 'deliver')}
                             className="w-full sm:w-auto gap-2 h-10 shadow-lg hover:shadow-primary/20"
                           >
-                            <PackageCheck size={18} /> Mark as Delivered
+                            <PackageCheck size={18} /> Mark as Shipped
                           </Button>
                         )}
-                        {item.buyerId._id === user._id && item.status === 'delivered' && (
-                          <Button 
-                            disabled={isProcessing}
-                            onClick={() => handleAction(item._id, 'confirm')}
-                            className="w-full sm:w-auto gap-2 h-10 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
-                          >
-                            <UserCheck size={18} /> Confirm Receipt & Release
-                          </Button>
+                        {activeTab === 'purchases' && item.status === 'delivered' && (
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            <Button 
+                              disabled={isProcessing}
+                              onClick={() => handleAction(item._id, 'confirm')}
+                              className="flex-1 sm:flex-none gap-2 h-10 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 font-bold px-6"
+                            >
+                              <UserCheck size={18} /> Confirm Receipt
+                            </Button>
+                            <Button 
+                              variant="outline"
+                              disabled={isProcessing}
+                              onClick={() => handleAction(item._id, 'dispute')}
+                              className="flex-1 sm:flex-none gap-2 h-10 text-red-600 border-red-100 hover:bg-red-50 font-bold px-6"
+                            >
+                              <AlertCircle size={18} /> Raise Dispute
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -155,7 +267,9 @@ const EscrowList = () => {
       ) : (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl bg-white space-y-4">
            <AlertCircle size={48} className="text-slate-200 mx-auto" />
-           <p className="text-muted font-medium italic">You haven't initiated any secure escrow deals yet.</p>
+           <p className="text-muted font-medium italic">
+             {activeTab === 'purchases' ? "You haven't bought anything yet." : "You haven't sold anything yet."}
+           </p>
         </div>
       )}
     </div>

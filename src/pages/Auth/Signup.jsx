@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router';
-import { ShieldCheck, ArrowRight, User, Mail, Lock, Eye, EyeOff, FileText, Fingerprint, Upload } from 'lucide-react';
+import { ShieldCheck, ArrowRight, User, Mail, Lock, Eye, EyeOff, FileText, Fingerprint, Upload, ShoppingBag } from 'lucide-react';
 import api from '../../services/api';
 import Button from '../../components/UI/Button/Button';
 import Input from '../../components/UI/Input/Input';
@@ -13,7 +13,9 @@ const Signup = () => {
     fullName: '',
     email: '',
     phone: '',
+    businessName: '',
     password: '',
+    confirmPassword: '',
     role: 'buyer',
     nin: '',
     businessDocument: null // Store the file object here
@@ -34,6 +36,12 @@ const Signup = () => {
     setError('');
 
     // Pre-validation
+    if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match.');
+        setIsLoading(false);
+        return;
+    }
+
     if (formData.role === 'seller' && !formData.nin && !formData.businessDocument) {
         setError('Please provide your NIN or upload a Business Document to register as a seller.');
         setIsLoading(false);
@@ -56,7 +64,17 @@ const Signup = () => {
       // Removed auto-login. Prompt user to login manually.
       navigate('/login', { state: { message: 'Account created successfully! Please log in to your new account.' } });
     } catch (err) {
-      setError(err.response?.data?.message || 'Signup failed. Please try again.');
+      const message = err.response?.data?.message || 'Signup failed. Please try again.';
+      if (message.toLowerCase().includes('already exists')) {
+        setError(
+          <div className="flex flex-col gap-1">
+            <span>This email is already registered.</span>
+            <Link to="/login" className="text-primary font-bold underline">Login instead</Link>
+          </div>
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -70,17 +88,16 @@ const Signup = () => {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md"
       >
-        <div className="text-center mb-10">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-2xl shadow-lg ring-4 ring-primary/10">P</div>
-            <span className="text-2xl font-bold tracking-tight text-primary">PayHold</span>
-          </Link>
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Create your account</h2>
-        </div>
-
-        <Card className="border-none shadow-premium overflow-hidden">
-           <div className="h-2 bg-primary"></div>
-          <CardContent className="p-8">
+        <div className="bg-white rounded-2xl shadow-premium border border-slate-100 overflow-hidden">
+          <div className="p-8">
+            <div className="text-center mb-10">
+              <Link to="/" className="inline-flex items-center gap-2 mb-6">
+                <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-2xl shadow-[0_8px_30px_rgb(59,130,246,0.2)] ring-4 ring-primary/10">P</div>
+                <span className="text-3xl font-bold tracking-tight text-primary">PayHold</span>
+              </Link>
+              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Create Your Account</h2>
+              <p className="mt-2 text-sm text-slate-500 font-medium tracking-tight">Secure your social commerce deals</p>
+            </div>
             {error && (
               <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 italic">
                 {error}
@@ -149,7 +166,15 @@ const Signup = () => {
                     className="space-y-4 pt-2"
                   >
                     <div className="h-px bg-slate-100"></div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Identity Verification (For Sellers)</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Business Information</p>
+                    <Input 
+                      label="Business / Company Name" 
+                      placeholder="e.g. Olamayorrh Ventures" 
+                      icon={<ShoppingBag size={18} />}
+                      required={formData.role === 'seller'}
+                      value={formData.businessName}
+                      onChange={(e) => setFormData({...formData, businessName: e.target.value})}
+                    />
                     <Input 
                       label="NIN (11 Digits)" 
                       placeholder="12345678901" 
@@ -184,24 +209,44 @@ const Signup = () => {
                 )}
               </AnimatePresence>
 
-              <Input
-                label="Create Password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                icon={<Lock size={18} />}
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                suffix={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-muted hover:text-primary transition-colors cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Create Password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  icon={<Lock size={18} />}
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  suffix={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-muted hover:text-primary transition-colors cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  }
+                />
+                <Input
+                  label="Confirm Password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  icon={<Lock size={18} />}
+                  required
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  suffix={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-muted hover:text-primary transition-colors cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  }
+                />
+              </div>
 
               <div className="flex items-start gap-3 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800 border border-emerald-100">
                 <ShieldCheck size={16} className="mt-0.5 shrink-0" />
@@ -212,8 +257,14 @@ const Signup = () => {
                 {isLoading ? 'Creating Account...' : `Create ${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} Account`} <ArrowRight size={20} className="ml-2 transition-transform group-hover:translate-x-1" />
               </Button>
             </form>
-          </CardContent>
-        </Card>
+            <p className="mt-8 text-center text-sm font-medium text-slate-500">
+              Already have an account?{' '}
+              <Link to="/login" className="font-bold text-primary hover:text-primary/80 transition-colors">
+                Sign In
+              </Link>
+            </p>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

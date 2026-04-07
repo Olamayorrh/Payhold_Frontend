@@ -7,14 +7,17 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (token) => {
+  const fetchProfile = async () => {
+    setLoading(true);
     try {
       const { data } = await api.get('/auth/profile');
       setUser(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      localStorage.removeItem('token');
-      setUser(null);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -40,7 +43,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser: fetchProfile }}>
       {children}
     </AuthContext.Provider>
   );

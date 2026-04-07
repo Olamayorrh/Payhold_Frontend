@@ -12,6 +12,7 @@ import PaymentVerify from './pages/Escrow/PaymentVerify.jsx';
 import KYCVerification from './pages/KYC/KYCVerification.jsx';
 import Wallet from './pages/Wallet/Wallet.jsx';
 import Profile from './pages/Profile/Profile.jsx';
+import Payout from './pages/Payout/Payout.jsx';
 import MainLayout from './components/Layout/MainLayout/MainLayout.jsx';
 import './App.css';
 
@@ -71,6 +72,12 @@ const App = () => {
           <Route path="/kyc" element={
             <ProtectedRoute>
               <KYCVerification />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/payout" element={
+            <ProtectedRoute>
+              <Payout />
             </ProtectedRoute>
           } />
           
